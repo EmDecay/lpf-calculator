@@ -77,90 +77,77 @@ def calculate_chebyshev_pi_lowpass(
     return capacitors, inductors, n
 
 
-def format_value(value: float, unit_type: str) -> str:
-    """Format component value with appropriate SI prefix."""
-    if unit_type == "capacitance":
-        if value >= 1e-6:
-            return f"{value * 1e6:.4f} µF"
-        elif value >= 1e-9:
-            return f"{value * 1e9:.4f} nF"
-        else:
-            return f"{value * 1e12:.4f} pF"
-    else:  # inductance
-        if value >= 1:
-            return f"{value:.4f} H"
-        elif value >= 1e-3:
-            return f"{value * 1e3:.4f} mH"
-        elif value >= 1e-6:
-            return f"{value * 1e6:.4f} µH"
-        else:
-            return f"{value * 1e9:.4f} nH"
+def format_capacitance(value_farads: float) -> str:
+    """Format capacitance with appropriate unit."""
+    if value_farads >= 1e-3:
+        return f"{value_farads * 1e3:.4g} mF"
+    elif value_farads >= 1e-6:
+        return f"{value_farads * 1e6:.4g} µF"
+    elif value_farads >= 1e-9:
+        return f"{value_farads * 1e9:.4g} nF"
+    else:
+        return f"{value_farads * 1e12:.4g} pF"
+
+
+def format_inductance(value_henries: float) -> str:
+    """Format inductance with appropriate unit."""
+    if value_henries >= 1:
+        return f"{value_henries:.4g} H"
+    elif value_henries >= 1e-3:
+        return f"{value_henries * 1e3:.4g} mH"
+    elif value_henries >= 1e-6:
+        return f"{value_henries * 1e6:.4g} µH"
+    else:
+        return f"{value_henries * 1e9:.4g} nH"
 
 
 def parse_frequency(freq_str: str) -> float:
-    """Parse frequency string with optional unit suffix."""
-    freq_str = freq_str.strip().upper()
-    # Order matters: check longer suffixes first
-    multipliers = [
-        ('MHZ', 1e6), ('GHZ', 1e9), ('KHZ', 1e3), ('HZ', 1),
-        ('M', 1e6), ('G', 1e9), ('K', 1e3), ('H', 1),
-    ]
-    for suffix, mult in multipliers:
-        if freq_str.endswith(suffix):
-            return float(freq_str[:-len(suffix)]) * mult
+    """Parse frequency string with optional unit suffix (Hz, kHz, MHz, GHz)."""
+    freq_str = freq_str.strip()
+    freq_str_lower = freq_str.lower()
+
+    # Check from longest suffix to shortest to avoid partial matches
+    suffixes = [('ghz', 1e9), ('mhz', 1e6), ('khz', 1e3), ('hz', 1)]
+
+    for suffix, mult in suffixes:
+        if freq_str_lower.endswith(suffix):
+            num_part = freq_str[:-len(suffix)].strip()
+            return float(num_part) * mult
+
+    # No suffix, assume Hz
     return float(freq_str)
 
 
 def parse_impedance(z_str: str) -> float:
-    """Parse impedance string with optional unit suffix."""
-    z_str = z_str.strip().upper()
-    # Order matters: check longer suffixes first
-    multipliers = [
-        ('KOHMS', 1e3), ('KOHM', 1e3), ('MOHMS', 1e6), ('MOHM', 1e6),
-        ('OHMS', 1), ('OHM', 1), ('K', 1e3),
-    ]
-    for suffix, mult in multipliers:
+    """Parse impedance string with optional unit suffix (ohm, kohm, mohm)."""
+    z_str = z_str.strip().lower().replace('ω', 'ohm').replace('Ω', 'ohm')
+    multipliers = {'mohm': 1e6, 'kohm': 1e3, 'ohm': 1}
+
+    for suffix, mult in multipliers.items():
         if z_str.endswith(suffix):
-            return float(z_str[:-len(suffix)]) * mult
+            return float(z_str[:-len(suffix)].strip()) * mult
+
+    # No suffix, assume ohms
     return float(z_str)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Chebyshev Pi LC Low Pass Filter Calculator",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  %(prog)s -f 100MHz -z 50 -r 0.5 -n 5
-  %(prog)s --freq 14.2M --impedance 50 --ripple 0.1 --order 7
-  %(prog)s -f 1GHz -z 75ohm -r 0.25 -n 3
-
-Notes:
-  - Filter order (n) must be odd for Pi topology; even values are incremented
-  - Frequency accepts suffixes: Hz, KHz, MHz, GHz (or H, K, M, G)
-  - Impedance accepts suffixes: ohm, Kohm, Mohm
-        """
+        description='Chebyshev Pi LC Low Pass Filter Calculator',
+        epilog='Example: %(prog)s -f 10MHz -z 50 -r 0.5 -n 5'
     )
-    parser.add_argument(
-        '-f', '--freq', required=True,
-        help='Cutoff frequency (e.g., 100MHz, 1.5GHz, 14200000)'
-    )
-    parser.add_argument(
-        '-z', '--impedance', required=True,
-        help='Characteristic impedance in ohms (e.g., 50, 75ohm)'
-    )
-    parser.add_argument(
-        '-r', '--ripple', type=float, required=True,
-        help='Passband ripple in dB (e.g., 0.5, 0.1)'
-    )
-    parser.add_argument(
-        '-n', '--order', type=int, required=True,
-        help='Number of components/filter order (1-11)'
-    )
-    parser.add_argument(
-        '--explain', action='store_true',
-        help='Explain how this filter works'
-    )
+    parser.add_argument('-f', '--frequency', required=True,
+                        help='Cutoff frequency (e.g., 100MHz, 1.5GHz, 500kHz)')
+    parser.add_argument('-z', '--impedance', default='50',
+                        help='Characteristic impedance (default: 50 ohms)')
+    parser.add_argument('-r', '--ripple', type=float, default=0.5,
+                        help='Passband ripple in dB (default: 0.5)')
+    parser.add_argument('-n', '--components', type=int, default=3,
+                        help='Number of components 1-11 (default: 3)')
+    parser.add_argument('--raw', action='store_true',
+                        help='Output raw values in Farads and Henries')
+    parser.add_argument('--explain', action='store_true',
+                        help='Explain how this filter works')
 
     args = parser.parse_args()
 
@@ -196,58 +183,66 @@ can tolerate small ripples in your passband.
         sys.exit(0)
 
     try:
-        freq = parse_frequency(args.freq)
+        freq_hz = parse_frequency(args.frequency)
         impedance = parse_impedance(args.impedance)
     except ValueError as e:
         print(f"Error parsing input: {e}", file=sys.stderr)
         sys.exit(1)
 
+    if freq_hz <= 0:
+        print("Error: Frequency must be positive", file=sys.stderr)
+        sys.exit(1)
+    if impedance <= 0:
+        print("Error: Impedance must be positive", file=sys.stderr)
+        sys.exit(1)
     if args.ripple <= 0:
         print("Error: Ripple must be positive", file=sys.stderr)
         sys.exit(1)
 
     capacitors, inductors, actual_n = calculate_chebyshev_pi_lowpass(
-        freq, impedance, args.ripple, args.order
+        freq_hz, impedance, args.ripple, args.components
     )
 
     # Display results
-    print("\n" + "=" * 50)
-    print("  Chebyshev Pi LC Low Pass Filter")
-    print("=" * 50)
-    print(f"  Cutoff Frequency: {freq/1e6:.6g} MHz")
-    print(f"  Impedance:        {impedance:.6g} Ω")
-    print(f"  Ripple:           {args.ripple} dB")
-    print(f"  Order:            {actual_n}")
-    if actual_n != args.order:
-        print(f"  (adjusted from {args.order} to {actual_n} for Pi topology)")
-    print("=" * 50)
-
-    print("\n  Topology:")
-    print("          ┌──────┤ L1 ├──────┬──────┤ L2 ├──────┐")
-    print("    IN ───┤                  │                  ├─── OUT")
-    print("         ===C1              ===C2              ===C3")
-    print("          │                  │                  │")
-    print("         GND                GND                GND")
-
-    print("\n  Component Values:")
-    print("  " + "-" * 46)
+    print("\nChebyshev Pi Low Pass Filter")
+    print(f"{'=' * 40}")
+    print(f"Cutoff Frequency: {freq_hz/1e6:.4g} MHz")
+    print(f"Impedance Z₀:     {impedance:.4g} Ω")
+    print(f"Ripple:           {args.ripple} dB")
+    print(f"Order:            {actual_n}")
+    if actual_n != args.components:
+        print(f"(adjusted from {args.components} to {actual_n} for Pi topology)")
+    print(f"{'=' * 40}")
+    print("\nTopology:")
+    print("        ┌──────┤ L1 ├──────┬──────┤ L2 ├──────┐")
+    print("  IN ───┤                  │                  ├─── OUT")
+    print("       ===C1              ===C2              ===C3")
+    print("        │                  │                  │")
+    print("       GND                GND                GND")
+    print(f"\n{'Component Values':^40}")
+    print(f"{'-' * 40}")
 
     # Pi filter: C-L-C-L-C... pattern
     # Display in circuit order
-    c_idx = 0
-    l_idx = 0
+    cap_idx = 0
+    ind_idx = 0
 
     for i in range(1, actual_n + 1):
         if i % 2 == 1:  # Capacitor (shunt)
-            val = format_value(capacitors[c_idx], "capacitance")
-            print(f"  C{c_idx + 1}: {val:>20}")
-            c_idx += 1
+            val = capacitors[cap_idx]
+            if args.raw:
+                print(f"  C{cap_idx + 1}: {val:.6e} F")
+            else:
+                print(f"  C{cap_idx + 1}: {format_capacitance(val)}")
+            cap_idx += 1
         else:  # Inductor (series)
-            val = format_value(inductors[l_idx], "inductance")
-            print(f"  L{l_idx + 1}: {val:>20}")
-            l_idx += 1
+            val = inductors[ind_idx]
+            if args.raw:
+                print(f"  L{ind_idx + 1}: {val:.6e} H")
+            else:
+                print(f"  L{ind_idx + 1}: {format_inductance(val)}")
+            ind_idx += 1
 
-    print("  " + "-" * 46)
     print()
 
 
