@@ -11,8 +11,15 @@ Written by Matt N3AR (with AI coding assistance)
 """
 
 import argparse
-import math
 import sys
+
+from lowpass_lib import (
+    calculate_butterworth,
+    calculate_chebyshev,
+    display_results,
+    parse_frequency,
+    parse_impedance,
+)
 
 
 BUTTERWORTH_EXPLANATION = """
@@ -72,168 +79,6 @@ can tolerate small ripples in your passband.
 """
 
 
-def calculate_butterworth(cutoff_hz: float, impedance: float, num_components: int) -> tuple[list[float], list[float], int]:
-    """Calculate Butterworth Pi low-pass filter component values."""
-    n = num_components
-    omega = 2 * math.pi * cutoff_hz
-
-    capacitors = []
-    inductors = []
-
-    for i in range(1, n + 1):
-        k = (2 * i - 1) * math.pi / (2 * n)
-        g = 2 * math.sin(k)
-
-        cap_value = g / (impedance * omega)
-        ind_value = g * impedance / omega
-
-        if i % 2 == 1:
-            capacitors.append(cap_value)
-        else:
-            inductors.append(ind_value)
-
-    return capacitors, inductors, n
-
-
-def calculate_chebyshev(cutoff_hz: float, impedance: float, ripple_db: float, num_components: int) -> tuple[list[float], list[float], int]:
-    """Calculate Chebyshev Pi low-pass filter component values."""
-    n = num_components
-    omega = 2 * math.pi * cutoff_hz
-
-    rr = ripple_db / 17.37
-    e2x = math.exp(2 * rr)
-    coth = (e2x + 1) / (e2x - 1)
-    bt = math.log(coth)
-    btn = bt / (2 * n)
-    gn = math.sinh(btn)
-
-    a = [0.0] * (n + 1)
-    b = [0.0] * (n + 1)
-    g = [0.0] * (n + 1)
-
-    for i in range(1, n + 1):
-        k = (2 * i - 1) * math.pi / (2 * n)
-        a[i] = math.sin(k)
-        k2 = math.pi * i / n
-        b[i] = gn ** 2 + math.sin(k2) ** 2
-
-    g[1] = 2 * a[1] / gn
-    for i in range(2, n + 1):
-        g[i] = (4 * a[i - 1] * a[i]) / (b[i - 1] * g[i - 1])
-
-    capacitors = []
-    inductors = []
-
-    for i in range(1, n + 1):
-        if i % 2 == 1:
-            capacitors.append(g[i] / (impedance * omega))
-        else:
-            inductors.append(g[i] * impedance / omega)
-
-    return capacitors, inductors, n
-
-
-def format_capacitance(value_farads: float) -> str:
-    """Format capacitance with appropriate unit."""
-    if value_farads >= 1e-3:
-        return f"{value_farads * 1e3:.2f} mF"
-    elif value_farads >= 1e-6:
-        return f"{value_farads * 1e6:.2f} µF"
-    elif value_farads >= 1e-9:
-        return f"{value_farads * 1e9:.2f} nF"
-    else:
-        return f"{value_farads * 1e12:.2f} pF"
-
-
-def format_inductance(value_henries: float) -> str:
-    """Format inductance with appropriate unit."""
-    if value_henries >= 1:
-        return f"{value_henries:.2f} H"
-    elif value_henries >= 1e-3:
-        return f"{value_henries * 1e3:.2f} mH"
-    elif value_henries >= 1e-6:
-        return f"{value_henries * 1e6:.2f} µH"
-    else:
-        return f"{value_henries * 1e9:.2f} nH"
-
-
-def parse_frequency(freq_str: str) -> float:
-    """Parse frequency string with optional unit suffix (Hz, kHz, MHz, GHz)."""
-    freq_str = freq_str.strip()
-    freq_str_lower = freq_str.lower()
-
-    suffixes = [('ghz', 1e9), ('mhz', 1e6), ('khz', 1e3), ('hz', 1)]
-
-    for suffix, mult in suffixes:
-        if freq_str_lower.endswith(suffix):
-            num_part = freq_str[:-len(suffix)].strip()
-            return float(num_part) * mult
-
-    return float(freq_str)
-
-
-def parse_impedance(z_str: str) -> float:
-    """Parse impedance string with optional unit suffix (ohm, kohm, mohm)."""
-    z_str = z_str.strip().lower().replace('ω', 'ohm').replace('Ω', 'ohm')
-    multipliers = {'mohm': 1e6, 'kohm': 1e3, 'ohm': 1}
-
-    for suffix, mult in multipliers.items():
-        if z_str.endswith(suffix):
-            return float(z_str[:-len(suffix)].strip()) * mult
-
-    return float(z_str)
-
-
-def display_results(filter_type: str, freq_hz: float, impedance: float,
-                    capacitors: list[float], inductors: list[float],
-                    order: int, ripple: float = None, raw: bool = False):
-    """Display calculated filter component values."""
-    title = f"{filter_type.title()} Pi Low Pass Filter"
-    print(f"\n{title}")
-    print(f"{'=' * 40}")
-    print(f"Cutoff Frequency: {freq_hz/1e6:.4g} MHz")
-    print(f"Impedance Z₀:     {impedance:.4g} Ω")
-    if ripple is not None:
-        print(f"Ripple:           {ripple} dB")
-    print(f"Order:            {order}")
-    print(f"{'=' * 40}")
-    print("\nTopology:")
-    print("        ┌──────┤ L1 ├──────┬──────┤ L2 ├──────┬─ ··· ─┐")
-    print("  IN ───┤                  │                  │       ├─── OUT")
-    print("       ===C1              ===C2              ===C3   ===Cn")
-    print("        │                  │                  │       │")
-    print("       GND                GND                GND     GND")
-    print(f"\n{'Component Values':^40}")
-    print(f"┌{'─' * 19}┬{'─' * 19}┐")
-    print(f"│{'Capacitors':^19}│{'Inductors':^19}│")
-    print(f"├{'─' * 19}┼{'─' * 19}┤")
-
-    max_rows = max(len(capacitors), len(inductors))
-    for i in range(max_rows):
-        if i < len(capacitors):
-            val = capacitors[i]
-            if raw:
-                cap_str = f"C{i + 1}: {val:.6e} F"
-            else:
-                cap_str = f"C{i + 1}: {format_capacitance(val)}"
-        else:
-            cap_str = ""
-
-        if i < len(inductors):
-            val = inductors[i]
-            if raw:
-                ind_str = f"L{i + 1}: {val:.6e} H"
-            else:
-                ind_str = f"L{i + 1}: {format_inductance(val)}"
-        else:
-            ind_str = ""
-
-        print(f"│ {cap_str:<17} │ {ind_str:<17} │")
-
-    print(f"└{'─' * 19}┴{'─' * 19}┘")
-    print()
-
-
 def main():
     parser = argparse.ArgumentParser(
         description='Pi LC Low Pass Filter Calculator (Butterworth or Chebyshev)',
@@ -288,15 +133,31 @@ def main():
 
     if args.type == 'butterworth':
         capacitors, inductors, order = calculate_butterworth(freq_hz, impedance, args.components)
-        display_results('butterworth', freq_hz, impedance, capacitors, inductors,
-                        order, raw=args.raw)
+        result = {
+            'filter_type': 'butterworth',
+            'freq_hz': freq_hz,
+            'impedance': impedance,
+            'capacitors': capacitors,
+            'inductors': inductors,
+            'order': order,
+            'ripple': None,
+        }
     else:
         if args.ripple <= 0:
             print("Error: Ripple must be positive", file=sys.stderr)
             sys.exit(1)
         capacitors, inductors, order = calculate_chebyshev(freq_hz, impedance, args.ripple, args.components)
-        display_results('chebyshev', freq_hz, impedance, capacitors, inductors,
-                        order, ripple=args.ripple, raw=args.raw)
+        result = {
+            'filter_type': 'chebyshev',
+            'freq_hz': freq_hz,
+            'impedance': impedance,
+            'capacitors': capacitors,
+            'inductors': inductors,
+            'order': order,
+            'ripple': args.ripple,
+        }
+
+    display_results(result, raw=args.raw)
 
 
 if __name__ == '__main__':
