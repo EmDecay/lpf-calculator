@@ -42,36 +42,50 @@ Configurable passband ripple. Best when you need a sharp cutoff and can accept s
 
 ```
 Butterworth Pi Low Pass Filter
-========================================
-Cutoff Frequency: 10 MHz
-Impedance Z₀:     50 Ω
-Order:            5
-========================================
+==================================================
+Cutoff Frequency:    10 MHz
+Impedance Z0:        50 Ohm
+Order:               5
+==================================================
 
 Topology:
-        ┌──────┤ L1 ├──────┬──────┤ L2 ├──────┬─ ··· ─┐
-  IN ───┤                  │                  │       ├─── OUT
-       ===C1              ===C2              ===C3   ===Cn
-        │                  │                  │       │
-       GND                GND                GND     GND
+  IN ───┬───┤ L1 ├───┬───┤ L2 ├───┬─── OUT
+        │            │            │
+       ===          ===          ===
+       C1           C2           C3
+        │            │            │
+       GND          GND          GND
 
-            Component Values
-┌───────────────────┬───────────────────┐
-│    Capacitors     │     Inductors     │
-├───────────────────┼───────────────────┤
-│ C1: 196.73 pF     │ L1: 1.29 µH       │
-│ C2: 636.62 pF     │ L2: 1.29 µH       │
-│ C3: 196.73 pF     │                   │
-└───────────────────┴───────────────────┘
+                 Component Values
++------------------------+------------------------+
+|       Capacitors       |       Inductors        |
++------------------------+------------------------+
+| C1: 196.73 pF          | L1: 1.29 uH            |
+| C2: 636.62 pF          | L2: 1.29 uH            |
+| C3: 196.73 pF          |                        |
++------------------------+------------------------+
 ```
 
 ## Pi Topology
 
-Capacitors are shunt elements (to ground), inductors are series elements (in the signal path). The number of components equals the filter order (poles).
+Capacitors are shunt elements (to ground), inductors are series elements (in the signal path). The number of components equals the filter order (poles). The topology diagram is dynamically generated based on the number of components.
+
+## Project Structure
+
+```
+lpf-calculator/
+├── pi-lowpass-filter.py    # Main CLI entry point
+├── lowpass_lib/            # Filter calculation library
+│   ├── __init__.py         # Package exports
+│   ├── calculations.py     # Butterworth & Chebyshev formulas
+│   ├── formatting.py       # Output formatting & topology diagrams
+│   └── parsing.py          # Frequency & impedance parsing
+└── README.md
+```
 
 ## Requirements
 
-Python 3.10+ (uses type hint syntax)
+Python 3.9+ (uses generic type hint syntax)
 
 ## License
 
