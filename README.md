@@ -90,3 +90,7 @@ Python 3.9+ (uses generic type hint syntax)
 ## License
 
 MIT
+
+## Author
+
+Matt N3AR (with AI coding assistance)
