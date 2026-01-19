@@ -33,7 +33,7 @@ Configurable passband ripple. Best when you need a sharp cutoff and can accept s
 | `-t, --type` | Filter type: `butterworth` or `chebyshev` (required) |
 | `-f, --frequency` | Cutoff frequency (e.g., 100MHz, 1.5GHz, 500kHz) |
 | `-z, --impedance` | Characteristic impedance, default 50 ohms |
-| `-n, --components` | Number of components: 3, 5, 7, 9, or 11 (default: 3) |
+| `-n, --components` | Number of components/poles: 2-9 (default: 3) |
 | `-r, --ripple` | Passband ripple in dB, Chebyshev only (default: 0.5) |
 | `--raw` | Output raw values in Farads and Henries |
 | `--explain` | Explain how the selected filter type works |

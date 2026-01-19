@@ -251,7 +251,7 @@ def main():
     parser.add_argument('-r', '--ripple', type=float, default=0.5,
                         help='Passband ripple in dB for Chebyshev (default: 0.5)')
     parser.add_argument('-n', '--components', type=int, default=3,
-                        help='Number of components: 3, 5, 7, 9, or 11 (default: 3)')
+                        help='Number of components/poles: 2-9 (default: 3)')
     parser.add_argument('--raw', action='store_true',
                         help='Output raw values in Farads and Henries')
     parser.add_argument('--explain', action='store_true',
@@ -282,11 +282,8 @@ def main():
     if impedance <= 0:
         print("Error: Impedance must be positive", file=sys.stderr)
         sys.exit(1)
-    if args.components < 3 or args.components > 11:
-        print("Error: Number of components must be between 3 and 11", file=sys.stderr)
-        sys.exit(1)
-    if args.components % 2 == 0:
-        print("Error: Number of components must be odd (3, 5, 7, 9, or 11)", file=sys.stderr)
+    if args.components < 2 or args.components > 9:
+        print("Error: Number of components must be between 2 and 9", file=sys.stderr)
         sys.exit(1)
 
     if args.type == 'butterworth':
