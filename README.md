@@ -7,7 +7,7 @@ Written by Matt N3AR (with AI coding assistance)
 ## Usage
 
 ```bash
-./pi-lowpass-filter.py -t <type> -f <frequency> [options]
+./pi-lowpass-filter.py <type> <frequency> [options]
 ```
 
 ### Butterworth Filter
@@ -15,7 +15,7 @@ Written by Matt N3AR (with AI coding assistance)
 Maximally-flat frequency response. Best when you need the smoothest passband and can tolerate a gentler rolloff.
 
 ```bash
-./pi-lowpass-filter.py -t butterworth -f 10MHz -z 50 -n 5
+./pi-lowpass-filter.py bw 10MHz -n 5
 ```
 
 ### Chebyshev Filter
@@ -23,18 +23,35 @@ Maximally-flat frequency response. Best when you need the smoothest passband and
 Configurable passband ripple. Best when you need a sharp cutoff and can accept some ripple in the passband.
 
 ```bash
-./pi-lowpass-filter.py -t chebyshev -f 100MHz -z 50 -r 0.5 -n 5
+./pi-lowpass-filter.py ch 100MHz -r 0.5 -n 5
+```
+
+### Output Formats
+
+```bash
+# JSON output (for scripting)
+./pi-lowpass-filter.py bw 10MHz --format json
+
+# CSV output (for spreadsheets)
+./pi-lowpass-filter.py bw 10MHz --format csv
+
+# Quiet mode (values only)
+./pi-lowpass-filter.py bw 10MHz -q
 ```
 
 ## Options
 
 | Option | Description |
 |--------|-------------|
-| `-t, --type` | Filter type: `butterworth` or `chebyshev` (required) |
-| `-f, --frequency` | Cutoff frequency (e.g., 100MHz, 1.5GHz, 500kHz) |
+| `type` | Filter type: `butterworth`/`bw` or `chebyshev`/`ch` (positional) |
+| `frequency` | Cutoff frequency (e.g., 10MHz, 1.5GHz) (positional) |
+| `-t, --type` | Filter type (flag alternative to positional) |
+| `-f, --freq` | Cutoff frequency (flag alternative to positional) |
 | `-z, --impedance` | Characteristic impedance, default 50 ohms |
 | `-n, --components` | Number of components/poles: 2-9 (default: 3) |
 | `-r, --ripple` | Passband ripple in dB, Chebyshev only (default: 0.5) |
+| `-q, --quiet` | Output only component values (no header/diagram) |
+| `--format` | Output format: `table` (default), `json`, or `csv` |
 | `--raw` | Output raw values in Farads and Henries |
 | `--explain` | Explain how the selected filter type works |
 

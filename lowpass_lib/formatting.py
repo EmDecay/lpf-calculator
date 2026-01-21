@@ -4,6 +4,10 @@ Output formatting for Pi LC low-pass filters.
 Contains unit formatters and display functions for filter results.
 """
 
+import csv
+import io
+import json
+
 
 def _format_with_units(value: float, units: list[tuple[float, str]], precision: str = ".4g") -> str:
     """Generic formatter for values with unit suffixes."""
@@ -34,6 +38,57 @@ def format_inductance(value_henries: float) -> str:
     return _format_with_units(value_henries, [
         (1, 'H'), (1e-3, 'mH'), (1e-6, 'uH'), (1e-9, 'nH')
     ], ".2f")
+
+
+def format_json(result: dict) -> str:
+    """Format results as JSON."""
+    output = {
+        'filter_type': result['filter_type'],
+        'cutoff_frequency_hz': result['freq_hz'],
+        'impedance_ohms': result['impedance'],
+        'order': result['order'],
+        'components': {
+            'capacitors': [{'name': f'C{i+1}', 'value_farads': v}
+                          for i, v in enumerate(result['capacitors'])],
+            'inductors': [{'name': f'L{i+1}', 'value_henries': v}
+                         for i, v in enumerate(result['inductors'])]
+        }
+    }
+    if result.get('ripple'):
+        output['ripple_db'] = result['ripple']
+    return json.dumps(output, indent=2)
+
+
+def format_csv(result: dict) -> str:
+    """Format results as CSV."""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Component', 'Value', 'Unit'])
+    for i, v in enumerate(result['capacitors']):
+        formatted = format_capacitance(v)
+        val, unit = formatted.rsplit(' ', 1)
+        writer.writerow([f'C{i+1}', val, unit])
+    for i, v in enumerate(result['inductors']):
+        formatted = format_inductance(v)
+        val, unit = formatted.rsplit(' ', 1)
+        writer.writerow([f'L{i+1}', val, unit])
+    return output.getvalue()
+
+
+def format_quiet(result: dict, raw: bool = False) -> str:
+    """Format results as minimal text (values only)."""
+    lines = []
+    for i, v in enumerate(result['capacitors']):
+        if raw:
+            lines.append(f"C{i+1}: {v:.6e} F")
+        else:
+            lines.append(f"C{i+1}: {format_capacitance(v)}")
+    for i, v in enumerate(result['inductors']):
+        if raw:
+            lines.append(f"L{i+1}: {v:.6e} H")
+        else:
+            lines.append(f"L{i+1}: {format_inductance(v)}")
+    return '\n'.join(lines)
 
 
 def _print_pi_topology_diagram(n_capacitors: int, n_inductors: int) -> None:
@@ -107,7 +162,8 @@ def _print_pi_topology_diagram(n_capacitors: int, n_inductors: int) -> None:
     print(gnd_sym)
 
 
-def display_results(result: dict, raw: bool = False) -> None:
+def display_results(result: dict, raw: bool = False,
+                    output_format: str = 'table', quiet: bool = False) -> None:
     """
     Display calculated filter component values.
 
@@ -121,7 +177,19 @@ def display_results(result: dict, raw: bool = False) -> None:
             - order: Filter order
             - ripple: Passband ripple in dB (Chebyshev only)
         raw: If True, display values in scientific notation
+        output_format: 'table', 'json', or 'csv'
+        quiet: If True, output only component values (no header/diagram)
     """
+    if output_format == 'json':
+        print(format_json(result))
+        return
+    if output_format == 'csv':
+        print(format_csv(result), end='')
+        return
+    if quiet:
+        print(format_quiet(result, raw))
+        return
+
     title = f"{result['filter_type'].title()} Pi Low Pass Filter"
 
     print(f"\n{title}")

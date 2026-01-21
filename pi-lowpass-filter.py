@@ -79,18 +79,38 @@ can tolerate small ripples in your passband.
 """
 
 
+def resolve_filter_type(alias: str) -> str:
+    """Convert short aliases to full filter type names."""
+    return {'bw': 'butterworth', 'b': 'butterworth',
+            'ch': 'chebyshev', 'c': 'chebyshev'}.get(alias, alias)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Pi LC Low Pass Filter Calculator (Butterworth or Chebyshev)',
         epilog='Examples:\n'
-               '  %(prog)s -t butterworth -f 10MHz -z 50 -n 5\n'
-               '  %(prog)s -t chebyshev -f 100MHz -z 50 -r 0.5 -n 5',
+               '  %(prog)s butterworth 10MHz              # positional args\n'
+               '  %(prog)s bw 10MHz -n 5                  # short alias\n'
+               '  %(prog)s -t chebyshev -f 100MHz -r 0.5  # flags\n'
+               '  %(prog)s bw 10MHz --format json         # JSON output\n'
+               '  %(prog)s bw 10MHz -q                    # quiet mode',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument('-t', '--type', choices=['butterworth', 'chebyshev'],
-                        required=True, help='Filter type: butterworth or chebyshev')
-    parser.add_argument('-f', '--frequency',
-                        help='Cutoff frequency (e.g., 100MHz, 1.5GHz, 500kHz)')
+
+    # Positional arguments (optional, fall back to flags)
+    parser.add_argument('filter_type', nargs='?',
+                        choices=['butterworth', 'chebyshev', 'bw', 'ch', 'b', 'c'],
+                        help='Filter type (butterworth/bw or chebyshev/ch)')
+    parser.add_argument('frequency', nargs='?',
+                        help='Cutoff frequency (e.g., 10MHz, 1.5GHz)')
+
+    # Keep flags as alternatives
+    parser.add_argument('-t', '--type', dest='type_flag',
+                        choices=['butterworth', 'chebyshev', 'bw', 'ch', 'b', 'c'],
+                        help='Filter type (alternative to positional)')
+    parser.add_argument('-f', '--freq', dest='freq_flag',
+                        help='Cutoff frequency (alternative to positional)')
+
     parser.add_argument('-z', '--impedance', default='50',
                         help='Characteristic impedance (default: 50 ohms)')
     parser.add_argument('-r', '--ripple', type=float, default=0.5,
@@ -102,20 +122,37 @@ def main():
     parser.add_argument('--explain', action='store_true',
                         help='Explain how the selected filter type works')
 
+    # New output options
+    parser.add_argument('-q', '--quiet', action='store_true',
+                        help='Output only component values (no header/diagram)')
+    parser.add_argument('--format', choices=['table', 'json', 'csv'],
+                        default='table', help='Output format (default: table)')
+
     args = parser.parse_args()
 
+    # Merge positional and flag arguments
+    filter_type = args.filter_type or args.type_flag
+    freq_input = args.frequency or args.freq_flag
+
     if args.explain:
-        if args.type == 'butterworth':
+        if not filter_type:
+            parser.error('Filter type required for --explain')
+        resolved_type = resolve_filter_type(filter_type)
+        if resolved_type == 'butterworth':
             print(BUTTERWORTH_EXPLANATION)
         else:
             print(CHEBYSHEV_EXPLANATION)
         sys.exit(0)
 
-    if not args.frequency:
-        parser.error('the following arguments are required: -f/--frequency')
+    if not filter_type:
+        parser.error('Filter type required (positional or -t/--type)')
+    if not freq_input:
+        parser.error('Frequency required (positional or -f/--freq)')
+
+    filter_type = resolve_filter_type(filter_type)
 
     try:
-        freq_hz = parse_frequency(args.frequency)
+        freq_hz = parse_frequency(freq_input)
         impedance = parse_impedance(args.impedance)
     except ValueError as e:
         print(f"Error parsing input: {e}", file=sys.stderr)
@@ -131,7 +168,7 @@ def main():
         print("Error: Number of components must be between 2 and 9", file=sys.stderr)
         sys.exit(1)
 
-    if args.type == 'butterworth':
+    if filter_type == 'butterworth':
         capacitors, inductors, order = calculate_butterworth(freq_hz, impedance, args.components)
         result = {
             'filter_type': 'butterworth',
@@ -157,7 +194,7 @@ def main():
             'ripple': args.ripple,
         }
 
-    display_results(result, raw=args.raw)
+    display_results(result, raw=args.raw, output_format=args.format, quiet=args.quiet)
 
 
 if __name__ == '__main__':

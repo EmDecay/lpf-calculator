@@ -13,6 +13,9 @@ from .formatting import (
     format_frequency,
     format_capacitance,
     format_inductance,
+    format_json,
+    format_csv,
+    format_quiet,
     display_results,
 )
 from .parsing import (
@@ -26,6 +29,9 @@ __all__ = [
     'format_frequency',
     'format_capacitance',
     'format_inductance',
+    'format_json',
+    'format_csv',
+    'format_quiet',
     'display_results',
     'parse_frequency',
     'parse_impedance',
