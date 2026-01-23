@@ -1,13 +1,14 @@
 """
 Pi LC Low Pass Filter Library.
 
-Provides calculations, parsing, and formatting for Butterworth and Chebyshev
-Pi-topology low-pass filters.
+Provides calculations, parsing, and formatting for Butterworth, Chebyshev,
+and Bessel Pi-topology low-pass filters.
 """
 
 from .calculations import (
     calculate_butterworth,
     calculate_chebyshev,
+    calculate_bessel,
 )
 from .formatting import (
     format_frequency,
@@ -26,6 +27,7 @@ from .parsing import (
 __all__ = [
     'calculate_butterworth',
     'calculate_chebyshev',
+    'calculate_bessel',
     'format_frequency',
     'format_capacitance',
     'format_inductance',

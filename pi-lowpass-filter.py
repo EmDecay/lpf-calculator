@@ -16,6 +16,7 @@ import sys
 from lowpass_lib import (
     calculate_butterworth,
     calculate_chebyshev,
+    calculate_bessel,
     display_results,
     parse_frequency,
     parse_impedance,
@@ -78,20 +79,54 @@ Choose Chebyshev over Butterworth when you need the sharpest possible cutoff and
 can tolerate small ripples in your passband.
 """
 
+BESSEL_EXPLANATION = """
+Bessel (Thomson) Low-Pass Filter Explained
+===========================================
+
+A low-pass filter allows low-frequency signals to pass through while blocking
+high-frequency signals.
+
+The Bessel filter (also called Thomson filter) is designed for maximally-flat
+group delay, which means all frequencies within the passband experience the same
+time delay. This results in linear phase response - the filter preserves the
+shape of signals passing through it.
+
+This makes Bessel filters ideal for:
+- Pulse and transient applications where waveform shape matters
+- Digital communications where timing relationships must be preserved
+- Audio applications requiring phase coherence
+- Any application where overshoot and ringing are unacceptable
+
+The tradeoff is that Bessel filters have the gentlest rolloff of the three types.
+They don't attenuate unwanted frequencies as aggressively as Butterworth or
+Chebyshev filters. If sharp frequency selectivity is your priority, choose one
+of those instead.
+
+This calculator uses a "Pi" topology, named because the circuit looks like the
+Greek letter Pi. Capacitors connect to ground and act as shortcuts for high
+frequencies, while inductors in the signal path resist rapid changes. Together,
+they block high frequencies while passing low ones.
+
+Choose Bessel when signal integrity and waveform preservation are more important
+than sharp frequency cutoff.
+"""
+
 
 def resolve_filter_type(alias: str) -> str:
     """Convert short aliases to full filter type names."""
     return {'bw': 'butterworth', 'b': 'butterworth',
-            'ch': 'chebyshev', 'c': 'chebyshev'}.get(alias, alias)
+            'ch': 'chebyshev', 'c': 'chebyshev',
+            'bs': 'bessel'}.get(alias, alias)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Pi LC Low Pass Filter Calculator (Butterworth or Chebyshev)',
+        description='Pi LC Low Pass Filter Calculator (Butterworth, Chebyshev, or Bessel)',
         epilog='Examples:\n'
                '  %(prog)s butterworth 10MHz              # positional args\n'
                '  %(prog)s bw 10MHz -n 5                  # short alias\n'
                '  %(prog)s -t chebyshev -f 100MHz -r 0.5  # flags\n'
+               '  %(prog)s bessel 10MHz                   # Bessel filter\n'
                '  %(prog)s bw 10MHz --format json         # JSON output\n'
                '  %(prog)s bw 10MHz -q                    # quiet mode',
         formatter_class=argparse.RawDescriptionHelpFormatter
@@ -99,14 +134,14 @@ def main():
 
     # Positional arguments (optional, fall back to flags)
     parser.add_argument('filter_type', nargs='?',
-                        choices=['butterworth', 'chebyshev', 'bw', 'ch', 'b', 'c'],
-                        help='Filter type (butterworth/bw or chebyshev/ch)')
+                        choices=['butterworth', 'chebyshev', 'bessel', 'bw', 'ch', 'bs', 'b', 'c'],
+                        help='Filter type (butterworth/bw, chebyshev/ch, or bessel/bs)')
     parser.add_argument('frequency', nargs='?',
                         help='Cutoff frequency (e.g., 10MHz, 1.5GHz)')
 
     # Keep flags as alternatives
     parser.add_argument('-t', '--type', dest='type_flag',
-                        choices=['butterworth', 'chebyshev', 'bw', 'ch', 'b', 'c'],
+                        choices=['butterworth', 'chebyshev', 'bessel', 'bw', 'ch', 'bs', 'b', 'c'],
                         help='Filter type (alternative to positional)')
     parser.add_argument('-f', '--freq', dest='freq_flag',
                         help='Cutoff frequency (alternative to positional)')
@@ -140,8 +175,10 @@ def main():
         resolved_type = resolve_filter_type(filter_type)
         if resolved_type == 'butterworth':
             print(BUTTERWORTH_EXPLANATION)
-        else:
+        elif resolved_type == 'chebyshev':
             print(CHEBYSHEV_EXPLANATION)
+        else:
+            print(BESSEL_EXPLANATION)
         sys.exit(0)
 
     if not filter_type:
@@ -179,7 +216,7 @@ def main():
             'order': order,
             'ripple': None,
         }
-    else:
+    elif filter_type == 'chebyshev':
         if args.ripple <= 0:
             print("Error: Ripple must be positive", file=sys.stderr)
             sys.exit(1)
@@ -192,6 +229,17 @@ def main():
             'inductors': inductors,
             'order': order,
             'ripple': args.ripple,
+        }
+    else:  # bessel
+        capacitors, inductors, order = calculate_bessel(freq_hz, impedance, args.components)
+        result = {
+            'filter_type': 'bessel',
+            'freq_hz': freq_hz,
+            'impedance': impedance,
+            'capacitors': capacitors,
+            'inductors': inductors,
+            'order': order,
+            'ripple': None,
         }
 
     display_results(result, raw=args.raw, output_format=args.format, quiet=args.quiet)

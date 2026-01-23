@@ -26,6 +26,14 @@ Configurable passband ripple. Best when you need a sharp cutoff and can accept s
 ./pi-lowpass-filter.py ch 100MHz -r 0.5 -n 5
 ```
 
+### Bessel Filter
+
+Maximally-flat group delay (linear phase). Best for pulse/transient applications where waveform preservation matters more than sharp cutoff.
+
+```bash
+./pi-lowpass-filter.py bs 10MHz -n 5
+```
+
 ### Output Formats
 
 ```bash
@@ -43,7 +51,7 @@ Configurable passband ripple. Best when you need a sharp cutoff and can accept s
 
 | Option | Description |
 |--------|-------------|
-| `type` | Filter type: `butterworth`/`bw` or `chebyshev`/`ch` (positional) |
+| `type` | Filter type: `butterworth`/`bw`, `chebyshev`/`ch`, or `bessel`/`bs` (positional) |
 | `frequency` | Cutoff frequency (e.g., 10MHz, 1.5GHz) (positional) |
 | `-t, --type` | Filter type (flag alternative to positional) |
 | `-f, --freq` | Cutoff frequency (flag alternative to positional) |
@@ -94,7 +102,7 @@ lpf-calculator/
 ├── pi-lowpass-filter.py    # Main CLI entry point
 ├── lowpass_lib/            # Filter calculation library
 │   ├── __init__.py         # Package exports
-│   ├── calculations.py     # Butterworth & Chebyshev formulas
+│   ├── calculations.py     # Butterworth, Chebyshev & Bessel formulas
 │   ├── formatting.py       # Output formatting & topology diagrams
 │   └── parsing.py          # Frequency & impedance parsing
 └── README.md
