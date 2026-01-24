@@ -95,6 +95,33 @@ def format_quiet(result: dict, raw: bool = False) -> str:
     return '\n'.join(lines)
 
 
+def _format_eseries_match(value: float, series: str, unit_formatter) -> list[str]:
+    """
+    Format E-series match for a component value.
+
+    Returns list of lines showing single match and parallel combo if better.
+    """
+    match = match_component(value, series)
+    lines = []
+
+    # Single value match
+    formatted = unit_formatter(match.matched_value)
+    error_sign = '+' if match.error_percent > 0 else ''
+    lines.append(f"  Nearest Std:  {formatted} ({error_sign}{match.error_percent:.1f}%)")
+
+    # Parallel combination if it's better (and exists)
+    if match.parallel_values and match.parallel_error_percent is not None:
+        if abs(match.parallel_error_percent) < abs(match.error_percent):
+            p1, p2 = match.parallel_values
+            # Format: smaller || larger with unit
+            p1_fmt = unit_formatter(p1).split()[0]  # Value only
+            p2_fmt = unit_formatter(p2)  # Value + unit
+            err_sign = '+' if match.parallel_error_percent > 0 else ''
+            lines.append(f"  Parallel Std: {p1_fmt} || {p2_fmt} ({err_sign}{match.parallel_error_percent:.1f}%)")
+
+    return lines
+
+
 def _print_pi_topology_diagram(n_capacitors: int, n_inductors: int) -> None:
     """
     Print dynamic Pi topology diagram for low-pass filter.
@@ -210,14 +237,14 @@ def display_results(result: dict, raw: bool = False,
     print("\nTopology:")
     _print_pi_topology_diagram(n_caps, n_inds)
 
-    # Component values table with E-series matching
+    # Component values table
     max_rows = max(n_caps, n_inds)
-    col_width = 28 if show_match else 24
+    col_width = 24
 
-    print(f"\n{'Component Values':^58}")
-    print(f"+{'-' * col_width}+{'-' * col_width}+")
-    print(f"|{'Capacitors':^{col_width}}|{'Inductors':^{col_width}}|")
-    print(f"+{'-' * col_width}+{'-' * col_width}+")
+    print(f"\n{'Component Values':^50}")
+    print(f"┌{'─' * col_width}┬{'─' * col_width}┐")
+    print(f"│{'Capacitors':^{col_width}}│{'Inductors':^{col_width}}│")
+    print(f"├{'─' * col_width}┼{'─' * col_width}┤")
 
     for i in range(max_rows):
         # Capacitor column
@@ -240,27 +267,20 @@ def display_results(result: dict, raw: bool = False,
         else:
             ind_str = ""
 
-        print(f"| {cap_str:<{col_width-2}} | {ind_str:<{col_width-2}} |")
+        print(f"│ {cap_str:<{col_width-2}} │ {ind_str:<{col_width-2}} │")
 
-        # E-series matching row (show warning for >10% error)
-        if show_match and not raw:
-            cap_match_str = ""
-            ind_match_str = ""
+    print(f"└{'─' * col_width}┴{'─' * col_width}┘")
 
-            if i < n_caps:
-                match = match_component(result['capacitors'][i], eseries)
-                warn = "!" if abs(match.error_percent) > 10 else ""
-                cap_match_str = f"  -> {format_capacitance(match.matched_value)} ({match.error_percent:+.1f}%){warn}"
-
-            if i < n_inds:
-                match = match_component(result['inductors'][i], eseries)
-                warn = "!" if abs(match.error_percent) > 10 else ""
-                ind_match_str = f"  -> {format_inductance(match.matched_value)} ({match.error_percent:+.1f}%){warn}"
-
-            if cap_match_str or ind_match_str:
-                print(f"| {cap_match_str:<{col_width-2}} | {ind_match_str:<{col_width-2}} |")
-
-    print(f"+{'-' * col_width}+{'-' * col_width}+")
+    # E-series matching section (capacitors only - inductors should be wound toroids)
+    if show_match and not raw:
+        print(f"\n{eseries} Standard Capacitor Recommendations")
+        print("─" * 45)
+        print("(Calculated values with nearest standard matches)")
+        print()
+        for i, cap in enumerate(result['capacitors']):
+            print(f"C{i+1} Calculated: {format_capacitance(cap)}")
+            for line in _format_eseries_match(cap, eseries, format_capacitance):
+                print(line)
 
     # Frequency response plot
     if show_plot:
