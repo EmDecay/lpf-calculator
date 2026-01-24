@@ -1,3 +1,5 @@
+This program is being archived; the logic and features have been migrated to https://github.com/EmDecay/rf-filter-calculator
+
 # Pi LC Low Pass Filter Calculator
 
 Command-line tool for calculating component values for Pi-topology LC low-pass filters.
