@@ -20,6 +20,10 @@ from lowpass_lib import (
     display_results,
     parse_frequency,
     parse_impedance,
+    generate_frequency_points,
+    frequency_response,
+    export_response_json,
+    export_response_csv,
 )
 
 
@@ -157,11 +161,23 @@ def main():
     parser.add_argument('--explain', action='store_true',
                         help='Explain how the selected filter type works')
 
-    # New output options
+    # Output options
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='Output only component values (no header/diagram)')
     parser.add_argument('--format', choices=['table', 'json', 'csv'],
                         default='table', help='Output format (default: table)')
+
+    # E-series matching options
+    parser.add_argument('-e', '--eseries', choices=['E12', 'E24', 'E96'],
+                        default='E24', help='E-series for component matching (default: E24)')
+    parser.add_argument('--no-match', action='store_true',
+                        help='Disable E-series component matching')
+
+    # Frequency response options
+    parser.add_argument('--plot', action='store_true',
+                        help='Show ASCII frequency response plot')
+    parser.add_argument('--plot-data', choices=['json', 'csv'],
+                        help='Export frequency response data (json or csv)')
 
     args = parser.parse_args()
 
@@ -242,7 +258,19 @@ def main():
             'ripple': None,
         }
 
-    display_results(result, raw=args.raw, output_format=args.format, quiet=args.quiet)
+    # Handle --plot-data early exit (export frequency response and exit)
+    if args.plot_data:
+        freqs = generate_frequency_points(freq_hz)
+        ripple = args.ripple if filter_type == 'chebyshev' else 0.5
+        response = frequency_response(filter_type, freqs, freq_hz, result['order'], ripple)
+        if args.plot_data == 'json':
+            print(export_response_json(freqs, response, result))
+        else:
+            print(export_response_csv(freqs, response))
+        sys.exit(0)
+
+    display_results(result, raw=args.raw, output_format=args.format, quiet=args.quiet,
+                    eseries=args.eseries, show_match=not args.no_match, show_plot=args.plot)
 
 
 if __name__ == '__main__':

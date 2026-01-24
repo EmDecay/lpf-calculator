@@ -62,6 +62,10 @@ Maximally-flat group delay (linear phase). Best for pulse/transient applications
 | `--format` | Output format: `table` (default), `json`, or `csv` |
 | `--raw` | Output raw values in Farads and Henries |
 | `--explain` | Explain how the selected filter type works |
+| `-e, --eseries` | E-series for component matching: `E12`, `E24` (default), `E96` |
+| `--no-match` | Disable E-series component suggestions |
+| `--plot` | Show ASCII frequency response plot |
+| `--plot-data` | Export frequency response: `json` or `csv` |
 
 ## Example Output
 
@@ -81,15 +85,20 @@ Topology:
         │            │            │
        GND          GND          GND
 
-                 Component Values
-+------------------------+------------------------+
-|       Capacitors       |       Inductors        |
-+------------------------+------------------------+
-| C1: 196.73 pF          | L1: 1.29 uH            |
-| C2: 636.62 pF          | L2: 1.29 uH            |
-| C3: 196.73 pF          |                        |
-+------------------------+------------------------+
+                     Component Values
++----------------------------+----------------------------+
+|         Capacitors         |         Inductors          |
++----------------------------+----------------------------+
+| C1: 196.73 pF              | L1: 1.29 uH                |
+|   -> 200.00 pF (+1.7%)     |   -> 1.30 uH (+1.0%)       |
+| C2: 636.62 pF              | L2: 1.29 uH                |
+|   -> 620.00 pF (-2.6%)     |   -> 1.30 uH (+1.0%)       |
+| C3: 196.73 pF              |                            |
+|   -> 200.00 pF (+1.7%)     |                            |
++----------------------------+----------------------------+
 ```
+
+E-series matching shows the closest standard component value with error percentage. Use `--no-match` to hide, or `-e E96` for tighter tolerances.
 
 ## Pi Topology
 
@@ -103,8 +112,11 @@ lpf-calculator/
 ├── lowpass_lib/            # Filter calculation library
 │   ├── __init__.py         # Package exports
 │   ├── calculations.py     # Butterworth, Chebyshev & Bessel formulas
+│   ├── eseries.py          # E-series component matching
 │   ├── formatting.py       # Output formatting & topology diagrams
-│   └── parsing.py          # Frequency & impedance parsing
+│   ├── parsing.py          # Frequency & impedance parsing
+│   ├── plotting.py         # ASCII frequency response plots
+│   └── transfer.py         # Transfer function calculations
 └── README.md
 ```
 
